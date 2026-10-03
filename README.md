@@ -49,7 +49,6 @@ ng version
 ```bash
 npm install
 npm start          # same as: ng serve
-
 ```
 
 The app will be available at `http://localhost:4200/` and reloads automatically when you change any source file (HMR through the Vite dev server).
@@ -73,12 +72,11 @@ ng serve --host 0.0.0.0      # expose the server on your local network
 
 ## Project Structure
 
-This project follows a strict separation of concerns using a standalone Angular architecture. All application code lives directly under `src/`.
+This project follows a strict separation of concerns using a standalone Angular architecture. All application code lives under `src/app/`.
 
 ```
 .
-
-├── public/                     # robots.txt, favicon, images/ <-- Static assets served directly
+├── public/                     <-- Static assets served directly (robots.txt, favicon, images/)
 ├── src/
 │   ├── app/
 │   │   ├── core/               <-- Technical infrastructure (Singletons)
@@ -93,7 +91,7 @@ This project follows a strict separation of concerns using a standalone Angular 
 │   │   │   │   └── home.component.ts
 │   │   │   └── our-services/
 │   │   │
-│   │   ├── shared/             <-- Reusable UI used by 2+ pages
+│   │   ├── shared/             <-- Reusable UI (used by 2+ pages or by the app shell)
 │   │   │   ├── layouts/        <-- Page wrappers (App Shell components)
 │   │   │   │   ├── footer/
 │   │   │   │   └── navbar/
@@ -131,46 +129,62 @@ Each directory represents a distinct, navigable page in the application.
 
 ### 3. `shared/` (Reusable UI & Layouts)
 
-Contains purely visual, stateless elements designed for maximum reusability.
+Contains purely visual, stateless elements designed for maximum reusability. A component moves here only when two or more pages (or the app shell) use it.
 
 - **`layouts/`**: structural components that wrap the application, such as `NavbarComponent` and `FooterComponent`.
 - **`ui/`**: "dumb components". They receive data via inputs, emit events via outputs, and contain **no** business logic or HTTP calls.
 
 > Simple buttons or badges must be built with Tailwind utility classes, not by creating redundant Angular components.
 
-### 4. `styles/` (Global CSS Architecture)
+Dependency direction: `pages → shared`, `pages → core` and `shared → core` are allowed. `shared` and `core` must never import from `pages`.
 
-Because the project relies on Tailwind CSS, the global CSS footprint is minimal. ITCSS organization is kept for clarity.
+### 4. `styles.css` (Global Styles)
 
-- **`styles.css`**: the single orchestrator file. It contains the `@tailwind base`, `components` and `utilities` directives.
+Because the project relies on Tailwind CSS, the global CSS footprint is minimal and lives in a single file.
+
+- **`src/styles.css`**: contains the `@tailwind base`, `components` and `utilities` directives.
 - Custom CSS is strictly limited. Global overrides (e.g., applying the Gruvbox background to the `body` tag) use Tailwind's `@apply` inside an `@layer base` block.
+- If the file grows too large, split it into partials and import them from `styles.css`.
 
-### 5. Root Configuration Files
+### 5. `public/` (Static Assets)
+
+Everything in `public/` is copied as-is to the root of the build output. Put `robots.txt`, the favicon and images here (e.g., `public/images/logo.svg`) and reference them with absolute paths (`/images/logo.svg`).
+
+### 6. Root Configuration Files
 
 - **`tailwind.config.js`**: defines the `content` globs used to tree-shake unused CSS.
 - **`app.routes.ts`**: the central navigation table. Enforces code-splitting by importing components only when their route is visited.
-- **`tsconfig.json`**: strict mode (`"strict": true`) plus the `@/*` path alias that maps to `src/*`, which avoids relative-path hell.
+- **`tsconfig.json`**: strict mode (`"strict": true`) plus the `@/*` path alias that maps to `src/app/*`, which avoids relative-path hell:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "paths": { "@/*": ["./src/app/*"] }
+  }
+}
+```
 
 ## Code Generation
 
-The CLI defaults to `src/app/`, so use `--path` to place files in this project's structure. In Angular 18 components are **standalone by default**.
+The Angular CLI generates files under `src/app/`, which matches this project's structure. In Angular 18 components are **standalone by default**.
 
 ```bash
 # Routed page (smart component)
-ng g c about --path src/pages
+ng g c pages/about
 
 # Private component of a page
-ng g c hero --path src/pages/home/components
+ng g c pages/home/components/hero
 
 # Dumb reusable component
-ng g c card --path src/shared/ui
+ng g c shared/ui/card
 
 # Layout component
-ng g c navbar --path src/shared/layouts
+ng g c shared/layouts/navbar
 
 # Global services and interceptors
-ng g s seo --path src/core/services
-ng g interceptor auth --path src/core/http
+ng g s core/services/seo
+ng g interceptor core/http/auth
 ```
 
 > Each component creates a `.ts`, `.html`, `.css` and `.spec.ts` file in its own folder.
@@ -233,6 +247,8 @@ export const routes: Routes = [
 import { SeoService } from "@/core/services/seo.service";
 ```
 
+- Keep unit tests next to the code they test (`*.spec.ts`), as the CLI generates them.
+
 ## Build and Deployment
 
 ### Production Build
@@ -251,7 +267,7 @@ dist/platform-started-landing-angular/browser
 
 ```bash
 ng build --configuration development      # unoptimized build with source maps
-ng build --base-href /landing/             # when served from a sub-path
+ng build --base-href /landing/            # when served from a sub-path
 ```
 
 ### Build Budgets
@@ -320,7 +336,7 @@ rm -rf node_modules package-lock.json && npm install   # clean reinstall
 Example:
 
 ```bash
-git commit -m "feat: add lazy loading to the services page"
+git commit -m "feat: add lazy loading to the our-services page"
 ```
 
 After committing, push your branch to the remote repository:
